@@ -2,7 +2,6 @@ import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
 import type { HTLCEscrow, ResolverRegistry, TestERC20 } from '../typechain-types';
-import { ContractTransactionResponse } from 'ethers';
 
 const ZERO_ADDR = '0x0000000000000000000000000000000000000000';
 const TIMELOCK = 600; // 10 minutes
@@ -72,7 +71,7 @@ function randomBytes32() {
  * Measure gas used by a transaction.
  * Returns the gas used in decimal form for easy logging and comparison.
  */
-async function measureGas(tx: ContractTransactionResponse | null): Promise<bigint> {
+async function measureGas(tx: any): Promise<bigint> {
   if (!tx) throw new Error('Transaction is null');
   const receipt = await tx.wait();
   if (!receipt) throw new Error('Receipt is null');
