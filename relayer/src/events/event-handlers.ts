@@ -6,6 +6,7 @@
 import { EventEmitter } from 'events';
 import { OrdersService } from './orders.js';
 import ProgressiveFillManager from './partial-fills.js';
+import { sanitizeForLog } from '../utils/sanitize-for-log.js';
 
 // 1inch Fusion+ compliant event types
 export enum EventType {
@@ -320,7 +321,7 @@ export class FusionEventManager extends EventEmitter {
           listener.lastNotified = Date.now();
           notifiedCount++;
         } catch (error) {
-          console.error(`❌ Error notifying listener ${listener.id}:`, error);
+          console.error(`❌ Error notifying listener ${listener.id}:`, sanitizeForLog(error));
         }
       }
     });
