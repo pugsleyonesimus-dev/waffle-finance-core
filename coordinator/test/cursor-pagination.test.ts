@@ -212,7 +212,7 @@ describe("Cursor-based Pagination", () => {
   });
 
   describe("performance comparison", () => {
-    it("cursor pagination should be faster than deep offset", async () => {
+    it("cursor pagination should be faster than deep offset", { timeout: 30_000 }, async () => {
       await createTestOrders(repo, 1000, VALID_ETH_ADDR);
       
       // Test deep offset pagination

@@ -339,8 +339,15 @@ export class OrdersRepository {
    * More efficient and consistent than offset pagination for large datasets.
    */
   async findByAddressWithCursor(addr: string, limit = 50, cursor?: string): Promise<OrderHistoryResult> {
+    // Treat empty-string cursor as invalid — callers must pass undefined for "no cursor"
+    if (cursor !== undefined && cursor === '') {
+      throw new Error('Invalid cursor: empty string is not a valid cursor');
+    }
+
+    // Fetch one extra row to cheaply detect whether a next page exists
+    const fetchLimit = limit + 1;
     let rows: OrderDbRow[];
-    
+
     if (!cursor) {
       // First page - get latest orders
       const firstPageStmt = this.db.prepare(`
@@ -349,23 +356,26 @@ export class OrdersRepository {
         ORDER BY created_at DESC, id DESC
         LIMIT :limit
       `);
-      rows = await this.all<OrderDbRow>(firstPageStmt, { addr, limit });
+      rows = await this.all<OrderDbRow>(firstPageStmt, { addr, limit: fetchLimit });
     } else {
       // Subsequent pages - use cursor
       const cursorInfo = this.decodeCursor(cursor);
       rows = await this.all<OrderDbRow>(this.byAddressCursor, {
         addr,
-        limit,
+        limit: fetchLimit,
         cursorCreatedAt: cursorInfo.createdAt,
         cursorId: cursorInfo.id
       });
     }
 
-    const orders = rows.map(rowToOrder);
-    
-    // Generate next cursor if there are more results
+    const hasMore = rows.length > limit;
+    // Trim to the requested limit
+    const pageRows = hasMore ? rows.slice(0, limit) : rows;
+    const orders = pageRows.map(rowToOrder);
+
+    // Generate next cursor only if there are genuinely more rows
     let nextCursor: string | null = null;
-    if (orders.length === limit) {
+    if (hasMore) {
       const lastOrder = orders[orders.length - 1];
       if (lastOrder) {
         nextCursor = this.encodeCursor({

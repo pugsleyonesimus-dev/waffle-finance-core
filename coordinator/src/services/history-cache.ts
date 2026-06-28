@@ -62,7 +62,7 @@ export class HistoryCache {
       return null;
     }
     
-    if (Date.now() > cached.expiresAt) {
+    if (Date.now() >= cached.expiresAt) {
       this.cache.delete(key);
       return null;
     }

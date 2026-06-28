@@ -227,16 +227,21 @@ describe("HistoryCache", () => {
     it("generates different keys for different parameters", () => {
       const address = "0x123";
       
+      // Pre-create all results so Date.now() is the same object in set and assertion
+      const result1 = createMockResult([1]);
+      const result2 = createMockResult([2]);
+      const result3 = createMockResult([3]);
+
       // These should not interfere with each other
-      cache.set(address, 50, undefined, createMockResult([1]));
-      cache.set(address, 50, "cursor", createMockResult([2])); 
-      cache.set(address, 25, undefined, createMockResult([3]));
+      cache.set(address, 50, undefined, result1);
+      cache.set(address, 50, "cursor", result2); 
+      cache.set(address, 25, undefined, result3);
       
       expect(cache.getStats().size).toBe(3);
       
-      expect(cache.get(address, 50)).toEqual(createMockResult([1]));
-      expect(cache.get(address, 50, "cursor")).toEqual(createMockResult([2]));
-      expect(cache.get(address, 25)).toEqual(createMockResult([3]));
+      expect(cache.get(address, 50)).toEqual(result1);
+      expect(cache.get(address, 50, "cursor")).toEqual(result2);
+      expect(cache.get(address, 25)).toEqual(result3);
     });
   });
 

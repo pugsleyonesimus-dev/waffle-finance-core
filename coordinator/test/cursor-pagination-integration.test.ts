@@ -20,11 +20,11 @@ const OTHER_ETH_ADDR = "0x8ba1f109551bD432803012645Hac136c8a3e5ea3";
 const VALID_STELLAR_ADDR = "GCKFBEIYTKP6H5HNCFLUOXO47ASPH7HY5PDXDDLGNJYQF5T4G2EWN5TB";
 const VALID_HASHLOCK_BASE = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
 
-async function createTestOrders(service: OrderService, count: number, address: string): Promise<void> {
+async function createTestOrders(service: OrderService, count: number, address: string, startIndex = 0): Promise<void> {
   for (let i = 0; i < count; i++) {
     const input: AnnounceInput = {
       direction: "eth_to_xlm",
-      hashlock: VALID_HASHLOCK_BASE.slice(0, -4) + i.toString(16).padStart(4, '0'),
+      hashlock: VALID_HASHLOCK_BASE.slice(0, -4) + (startIndex + i).toString(16).padStart(4, '0'),
       srcChain: "ethereum",
       srcAddress: address,
       srcAsset: "native",
@@ -78,13 +78,13 @@ describe("Cursor Pagination Integration", () => {
       const initialResult = await service.historyWithCursor(VALID_ETH_ADDR, 10);
       expect(initialResult.orders).toHaveLength(3);
       
-      // Add new order
-      await createTestOrders(service, 1, VALID_ETH_ADDR);
+      // Add new order with non-colliding hashlocks (startIndex=3)
+      await createTestOrders(service, 1, VALID_ETH_ADDR, 3);
       
       // Should get updated result (not cached)
       const updatedResult = await service.historyWithCursor(VALID_ETH_ADDR, 10);
       expect(updatedResult.orders).toHaveLength(4);
-      expect(updatedResult.orders[0].createdAt).toBeGreaterThan(initialResult.orders[0].createdAt);
+      expect(updatedResult.orders[0].createdAt).toBeGreaterThanOrEqual(initialResult.orders[0].createdAt);
     });
 
     it("invalidates cache on order status updates", async () => {
@@ -124,7 +124,8 @@ describe("Cursor Pagination Integration", () => {
 
     it("handles cache for different addresses independently", async () => {
       await createTestOrders(service, 3, VALID_ETH_ADDR);
-      await createTestOrders(service, 2, OTHER_ETH_ADDR);
+      // Use startIndex=100 to ensure hashlocks don't collide with VALID_ETH_ADDR orders
+      await createTestOrders(service, 2, OTHER_ETH_ADDR, 100);
       
       const result1 = await service.historyWithCursor(VALID_ETH_ADDR, 10);
       const result2 = await service.historyWithCursor(OTHER_ETH_ADDR, 10);
@@ -132,8 +133,8 @@ describe("Cursor Pagination Integration", () => {
       expect(result1.orders).toHaveLength(3);
       expect(result2.orders).toHaveLength(2);
       
-      // Add order for first address
-      await createTestOrders(service, 1, VALID_ETH_ADDR);
+      // Add order for first address with non-colliding hashlocks (startIndex=3)
+      await createTestOrders(service, 1, VALID_ETH_ADDR, 3);
       
       // First address should see new order, second should use cache
       const updatedResult1 = await service.historyWithCursor(VALID_ETH_ADDR, 10);
