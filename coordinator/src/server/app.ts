@@ -69,7 +69,7 @@ export function createApp(deps: AppDeps): Express {
       getReadinessChecks: deps.getReadinessChecks
     })
   );
-  app.use(metricsRoutes());
+  app.use(metricsRoutes(deps.log));
   // Pass the logger into route factories so rate-limit abuse events are
   // surfaced through the application's structured log stream.
   app.use("/api", ordersRoutes(deps.orders, deps.log));

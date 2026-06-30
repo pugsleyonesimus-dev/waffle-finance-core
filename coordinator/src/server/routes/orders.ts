@@ -7,6 +7,7 @@ import { OrderValidationError } from "../../services/order-service.js";
 import { announceSchema } from "../../validation/announce.js";
 import { historyAddressSchema } from "../../validation/address.js";
 import { makeRateLimiter, loadApiKeys, loadTrustedProxies } from "../middleware/ratelimit.js";
+import { requireRole, loadOperatorKeys } from "../middleware/auth.js";
 
 function serialiseOrder(order: OrderRow | null) {
   if (!order) return null;
@@ -52,6 +53,7 @@ export function ordersRoutes(orders: OrderService, log?: Logger): Router {
 
   const apiKeys = loadApiKeys();
   const trustedProxies = loadTrustedProxies();
+  const operatorKeys = loadOperatorKeys();
 
   // 20 announces per IP per minute — rate is intentionally conservative so
   // that legitimate resolvers are not impacted during normal operations.
@@ -125,10 +127,13 @@ export function ordersRoutes(orders: OrderService, log?: Logger): Router {
     timelock: z.coerce.number().int().nonnegative()
   });
 
-  router.post("/orders/:id/src-locked", async (req, res, next) => {
-    try {
+  router.post(
+    "/orders/:id/src-locked",
+    requireRole("operator", { operatorKeys, log, trustedProxies }),
+    async (req, res, next) => {
+      try {
       const body = lockSchema.parse(req.body);
-      await orders.recordSrcLock({ publicId: req.params.id, ...body });
+      await orders.recordSrcLock({ publicId: req.params.id!, ...body });
       res.json({ ok: true });
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -143,11 +148,14 @@ export function ordersRoutes(orders: OrderService, log?: Logger): Router {
     }
   });
 
-  router.post("/orders/:id/dst-locked", async (req, res, next) => {
-    try {
+  router.post(
+    "/orders/:id/dst-locked",
+    requireRole("operator", { operatorKeys, log, trustedProxies }),
+    async (req, res, next) => {
+      try {
       const body = lockSchema.extend({ resolver: z.string().nullable().optional() }).parse(req.body);
       await orders.recordDstLock({
-        publicId: req.params.id,
+        publicId: req.params.id!,
         orderId: body.orderId,
         txHash: body.txHash,
         blockNumber: body.blockNumber,
