@@ -3,6 +3,7 @@ import { pino } from "pino";
 import { resolve } from "node:path";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { performance } from "node:perf_hooks";
 import { openDatabase } from "../src/persistence/db.js";
 import { OrderService } from "../src/services/order-service.js";
 import { OrdersRepository } from "../src/persistence/orders-repo.js";
