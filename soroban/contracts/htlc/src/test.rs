@@ -397,6 +397,8 @@ fn setup_registry<'a>(
     let registry_admin = Address::generate(env);
     let slash_beneficiary = Address::generate(env);
     let min_stake: i128 = 100_0000000; // 100 stake-asset units
+    // unbonding_period must be >= MIN_UNBONDING_PERIOD_SECS (86 400 s).
+    let unbonding_period: u64 = wafflefinance_resolver_registry::MIN_UNBONDING_PERIOD_SECS;
     let registry_id = env.register(
         ResolverRegistry,
         (
@@ -404,6 +406,7 @@ fn setup_registry<'a>(
             stake_asset.clone(),
             min_stake,
             slash_beneficiary,
+            unbonding_period,
         ),
     );
     let registry = ResolverRegistryClient::new(env, &registry_id);
@@ -1058,3 +1061,56 @@ fn instance_ttl_extended_on_create_claim_refund() {
     assert_eq!(instance_ttl(&env, &htlc), INSTANCE_TTL_EXTEND_TO);
 }
 
+
+// ---------------------------------------------------------------------
+// Cross-contract: unbonding resolver is rejected by create_order
+// (Acceptance criterion: request_unregister immediately sets
+//  is_active == false and HTLC rejects the resolver.)
+// ---------------------------------------------------------------------
+
+#[test]
+fn create_order_rejects_resolver_who_requested_unregistration() {
+    // A resolver that has called request_unregister is inactive, so
+    // the HTLC must reject them even while their stake is still locked
+    // in the registry during the unbonding window.
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let asset_admin = Address::generate(&env);
+    let (asset, sac, _token) = deploy_token(&env, &asset_admin);
+    let (_admin, htlc) = setup(&env, 0);
+
+    let (registry_id, registry, min_stake) = setup_registry(&env, &asset);
+    htlc.set_resolver_registry(&registry_id);
+
+    let resolver = Address::generate(&env);
+    let beneficiary = Address::generate(&env);
+    sac.mint(&resolver, &(min_stake + 100_0000000));
+    registry.register(&resolver, &min_stake);
+    assert!(registry.is_active(&resolver));
+
+    // The resolver initiates exit — this immediately flips is_active
+    // to false in the registry.
+    registry.request_unregister(&resolver);
+    assert!(!registry.is_active(&resolver));
+
+    let preimage = Bytes::from_array(&env, &[99u8; 32]);
+    let hashlock = sha256_32(&env, &preimage);
+
+    // HTLC create_order must now reject the resolver.
+    let res = htlc.try_create_order(
+        &resolver,
+        &beneficiary,
+        &resolver,
+        &asset,
+        &10_0000000i128,
+        &0i128,
+        &hashlock,
+        &600u64,
+    );
+    assert_eq!(
+        res.err().unwrap().unwrap(),
+        Error::ResolverNotAuthorised.into(),
+        "HTLC must reject a resolver that has requested unregistration"
+    );
+}
