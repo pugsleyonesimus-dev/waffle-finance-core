@@ -1,4 +1,4 @@
-
+﻿
 #![cfg(test)]
 
 use crate::{
@@ -450,7 +450,7 @@ fn create_order_succeeds_for_active_registered_resolver() {
     assert_eq!(token.balance(&htlc.address), amount);
 
     // Claim path must remain permissionless even though the registry is
-    // configured — the registry only gates create_order.
+    // configured ΓÇö the registry only gates create_order.
     let outsider = Address::generate(&env);
     htlc.claim_order(&order_id, &preimage, &outsider);
     let order: Order = htlc.get_order(&order_id).unwrap();
@@ -514,7 +514,7 @@ fn create_order_rejects_resolver_made_inactive_by_slash() {
     registry.register(&resolver, &min_stake);
     assert!(registry.is_active(&resolver));
 
-    // Slash the full stake — registry drops the resolver below the
+    // Slash the full stake ΓÇö registry drops the resolver below the
     // minimum and flips `active` to false.
     registry.slash(&resolver, &min_stake);
     assert!(!registry.is_active(&resolver));
@@ -540,7 +540,7 @@ fn create_order_rejects_resolver_made_inactive_by_slash() {
 #[test]
 fn clear_resolver_registry_restores_permissionless_create_order() {
     // After clear_resolver_registry the HTLC must accept any sender
-    // again — proves the binding is dynamic, not baked in at deploy.
+    // again ΓÇö proves the binding is dynamic, not baked in at deploy.
     let env = Env::default();
     env.mock_all_auths();
 
@@ -687,7 +687,7 @@ fn order_ttl_scales_with_timelock() {
     let short_ttl = order_ttl(&env, &htlc, short);
     let long_ttl = order_ttl(&env, &htlc, long);
     assert!(short_ttl >= ORDER_TTL_MARGIN_LEDGERS);
-    // A longer timelock buys a proportionally longer entry TTL — the
+    // A longer timelock buys a proportionally longer entry TTL ΓÇö the
     // TTL is not a fixed creation-time constant.
     let expected_gap = ((MAX_TIMELOCK_SECONDS - 600) / ASSUMED_MIN_LEDGER_TIME_SECS) as u32;
     assert_eq!(long_ttl - short_ttl, expected_gap);
